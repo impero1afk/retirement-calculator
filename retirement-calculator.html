@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retirement Playground</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 20px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  h1 { font-size: 1.8rem; font-weight: 600; }
+  .lang-toggle { display: flex; gap: 4px; background: #1e293b; padding: 4px; border-radius: 8px; }
+  .lang-toggle button {
+    background: transparent; color: #94a3b8; border: none; padding: 6px 14px;
+    border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.9rem;
+  }
+  .lang-toggle button.active { background: #3b82f6; color: white; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: #1e293b; border-radius: 12px; padding: 20px; }
+  .panel h2 { font-size: 1.1rem; margin-bottom: 16px; color: #cbd5e1; font-weight: 600; }
+
+  .input-group { margin-bottom: 16px; }
+  .input-group label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; font-weight: 500;
+  }
+  .input-group .value-display {
+    color: #60a5fa; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .input-group input[type="range"] {
+    width: 100%; height: 6px; background: #334155; border-radius: 3px;
+    outline: none; -webkit-appearance: none; appearance: none;
+  }
+  .input-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+    background: #3b82f6; border-radius: 50%; cursor: pointer;
+  }
+  .input-group input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; background: #3b82f6; border-radius: 50%;
+    cursor: pointer; border: none;
+  }
+  .input-group input[type="number"], .input-group select {
+    width: 100%; padding: 8px 10px; background: #0f172a; color: #e2e8f0;
+    border: 1px solid #334155; border-radius: 6px; font-size: 0.9rem;
+    margin-top: 6px;
+  }
+  .input-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+  .input-row input[type="number"] { width: 100px; margin-top: 0; }
+
+  .headline {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    border-radius: 10px; padding: 20px; margin-bottom: 16px;
+  }
+  .headline .label { font-size: 0.85rem; color: #bfdbfe; margin-bottom: 6px; }
+  .headline .number { font-size: 2.2rem; font-weight: 700; color: white; font-variant-numeric: tabular-nums; }
+  .headline .sub { font-size: 0.9rem; color: #dbeafe; margin-top: 6px; }
+
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .metric { background: #0f172a; padding: 14px; border-radius: 8px; }
+  .metric .label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
+  .metric .number { font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .metric.good .number { color: #4ade80; }
+  .metric.bad .number { color: #f87171; }
+  .metric.neutral .number { color: #e2e8f0; }
+
+  .chart-container { background: #0f172a; padding: 16px; border-radius: 8px; height: 320px; }
+
+  .toggle-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .toggle-row button {
+    flex: 1; background: #0f172a; color: #94a3b8; border: 1px solid #334155;
+    padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+  }
+  .toggle-row button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+  .footnote { font-size: 0.75rem; color: #64748b; margin-top: 12px; text-align: center; }
+
+  .scenario-help {
+    font-size: 0.75rem; color: #64748b; margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1 id="title">🏖️ Retirement Playground</h1>
+    <div class="lang-toggle">
+      <button id="btn-en" class="active" onclick="setLang('en')">EN</button>
+      <button id="btn-es" onclick="setLang('es')">ES</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- INPUTS -->
+    <div class="panel">
+      <h2 data-i18n="inputs">Your numbers</h2>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="currentAge">Current age</span>
+          <span class="value-display" id="currentAge-val">35</span>
+        </label>
+        <input type="range" id="currentAge" min="18" max="80" value="35" step="1">
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="retirementAge">Retirement age</span>
+          <span class="value-display" id="retirementAge-val">55</span>
+        </label>
+        <input type="range" id="retirementAge" min="30" max="85" value="55" step="1">
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="lifeExpectancy">Life expectancy</span>
+          <span class="value-display" id="lifeExpectancy-val">90</span>
+        </label>
+        <input type="range" id="lifeExpectancy" min="60" max="105" value="90" step="1">
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="currentSavings">Current savings & investments (€)</span>
+        </label>
+        <div class="input-row">
+          <input type="range" id="currentSavings" min="0" max="2000000" value="50000" step="1000">
+          <input type="number" id="currentSavings-num" value="50000" step="1000">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="monthlyContribution">Monthly savings (€/month, today's value)</span>
+        </label>
+        <div class="input-row">
+          <input type="range" id="monthlyContribution" min="0" max="10000" value="1500" step="50">
+          <input type="number" id="monthlyContribution-num" value="1500" step="50">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="monthlyBurn">Monthly spend in retirement (€/month, today's value)</span>
+        </label>
+        <div class="input-row">
+          <input type="range" id="monthlyBurn" min="500" max="15000" value="3500" step="100">
+          <input type="number" id="monthlyBurn-num" value="3500" step="100">
+        </div>
+        <div class="scenario-help" data-i18n="burnHelp">Include everything: housing, food, leisure, healthcare, mortgage if still active, etc.</div>
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="inflation">Expected inflation</span>
+          <span class="value-display"><span id="inflation-val">2.5</span>%</span>
+        </label>
+        <input type="range" id="inflation" min="0" max="6" value="2.5" step="0.1">
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="returnScenario">Investment scenario (pre-retirement)</span>
+        </label>
+        <select id="returnScenario">
+          <option value="3" data-i18n="scenarioConservative">Conservative (bonds-heavy) ~3%</option>
+          <option value="5" selected data-i18n="scenarioBalanced">Balanced (60/40) ~5%</option>
+          <option value="7" data-i18n="scenarioGrowth">Growth (equities-heavy) ~7%</option>
+          <option value="9" data-i18n="scenarioAggressive">Aggressive (100% equities) ~9%</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="postReturn">Return during retirement (safer portfolio)</span>
+          <span class="value-display"><span id="postReturn-val">4</span>%</span>
+        </label>
+        <input type="range" id="postReturn" min="0" max="8" value="4" step="0.1">
+      </div>
+
+      <div class="input-group">
+        <label>
+          <span data-i18n="taxRate">Effective tax on withdrawals (Spain: ~19-23%)</span>
+          <span class="value-display"><span id="taxRate-val">21</span>%</span>
+        </label>
+        <input type="range" id="taxRate" min="0" max="45" value="21" step="0.5">
+      </div>
+    </div>
+
+    <!-- OUTPUTS -->
+    <div class="panel">
+      <h2 data-i18n="results">Results</h2>
+
+      <div class="toggle-row">
+        <button id="viewNominal" class="active" onclick="setView('nominal')" data-i18n="nominalView">Nominal € (future euros)</button>
+        <button id="viewReal" onclick="setView('real')" data-i18n="realView">Real € (today's value)</button>
+      </div>
+
+      <div class="headline">
+        <div class="label" data-i18n="targetLabel">You need at retirement age:</div>
+        <div class="number" id="targetNeeded">€0</div>
+        <div class="sub" id="targetSub"></div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric" id="metric-projected">
+          <div class="label" data-i18n="projectedLabel">You'll actually have:</div>
+          <div class="number" id="projectedAmount">€0</div>
+        </div>
+        <div class="metric" id="metric-gap">
+          <div class="label" data-i18n="gapLabel">Surplus / shortfall:</div>
+          <div class="number" id="gap">€0</div>
+        </div>
+        <div class="metric neutral">
+          <div class="label" data-i18n="moneyLastsLabel">Your money lasts until age:</div>
+          <div class="number" id="moneyLasts">—</div>
+        </div>
+        <div class="metric neutral">
+          <div class="label" data-i18n="earliestLabel">Earliest possible retirement:</div>
+          <div class="number" id="earliestAge">—</div>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="footnote" data-i18n="footnote">Educational tool. Not financial advice. Assumes constant returns, inflation, and burn rate.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const i18n = {
+  en: {
+    title: "🏖️ Retirement Playground",
+    inputs: "Your numbers",
+    results: "Results",
+    currentAge: "Current age",
+    retirementAge: "Retirement age",
+    lifeExpectancy: "Life expectancy",
+    currentSavings: "Current savings & investments (€)",
+    monthlyContribution: "Monthly savings (€/month, today's value)",
+    monthlyBurn: "Monthly spend in retirement (€/month, today's value)",
+    burnHelp: "Include everything: housing, food, leisure, healthcare, mortgage if still active, etc.",
+    inflation: "Expected inflation",
+    returnScenario: "Investment scenario (pre-retirement)",
+    scenarioConservative: "Conservative (bonds-heavy) ~3%",
+    scenarioBalanced: "Balanced (60/40) ~5%",
+    scenarioGrowth: "Growth (equities-heavy) ~7%",
+    scenarioAggressive: "Aggressive (100% equities) ~9%",
+    postReturn: "Return during retirement (safer portfolio)",
+    taxRate: "Effective tax on withdrawals (Spain: ~19-23%)",
+    nominalView: "Nominal € (future euros)",
+    realView: "Real € (today's value)",
+    targetLabel: "You need at retirement age:",
+    projectedLabel: "You'll actually have:",
+    gapLabel: "Surplus / shortfall:",
+    moneyLastsLabel: "Your money lasts until age:",
+    earliestLabel: "Earliest possible retirement:",
+    footnote: "Educational tool. Not financial advice. Assumes constant returns, inflation, and burn rate.",
+    moneyLastsForever: "forever ✨",
+    cannotRetire: "not possible 😬",
+    portfolioLabel: "Portfolio balance",
+    ageLabel: "Age",
+    retirementLine: "Retirement",
+    targetSub: (age, lasts) => `to fund ${age} → ${lasts} at the chosen burn`,
+  },
+  es: {
+    title: "🏖️ Calculadora de Jubilación",
+    inputs: "Tus números",
+    results: "Resultados",
+    currentAge: "Edad actual",
+    retirementAge: "Edad de jubilación",
+    lifeExpectancy: "Esperanza de vida",
+    currentSavings: "Ahorros e inversiones actuales (€)",
+    monthlyContribution: "Ahorro mensual (€/mes, valor de hoy)",
+    monthlyBurn: "Gasto mensual en jubilación (€/mes, valor de hoy)",
+    burnHelp: "Incluye todo: vivienda, comida, ocio, salud, hipoteca si sigue activa, etc.",
+    inflation: "Inflación esperada",
+    returnScenario: "Escenario de inversión (antes de jubilación)",
+    scenarioConservative: "Conservador (bonos) ~3%",
+    scenarioBalanced: "Equilibrado (60/40) ~5%",
+    scenarioGrowth: "Crecimiento (renta variable) ~7%",
+    scenarioAggressive: "Agresivo (100% acciones) ~9%",
+    postReturn: "Rentabilidad durante jubilación (cartera más segura)",
+    taxRate: "Tipo efectivo sobre retiradas (España: ~19-23%)",
+    nominalView: "€ nominales (euros futuros)",
+    realView: "€ reales (valor de hoy)",
+    targetLabel: "Necesitas al jubilarte:",
+    projectedLabel: "Realmente tendrás:",
+    gapLabel: "Superávit / déficit:",
+    moneyLastsLabel: "Tu dinero dura hasta los:",
+    earliestLabel: "Jubilación más temprana posible:",
+    footnote: "Herramienta educativa. No es asesoramiento financiero. Asume rendimientos, inflación y gasto constantes.",
+    moneyLastsForever: "para siempre ✨",
+    cannotRetire: "no es posible 😬",
+    portfolioLabel: "Saldo de cartera",
+    ageLabel: "Edad",
+    retirementLine: "Jubilación",
+    targetSub: (age, lasts) => `para financiar ${age} → ${lasts} con el gasto elegido`,
+  }
+};
+
+let lang = 'en';
+let view = 'nominal';
+let chart;
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btn-en').classList.toggle('active', l === 'en');
+  document.getElementById('btn-es').classList.toggle('active', l === 'es');
+  document.getElementById('title').textContent = i18n[l].title;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18n[l][key]) el.textContent = i18n[l][key];
+  });
+  recalc();
+}
+
+function setView(v) {
+  view = v;
+  document.getElementById('viewNominal').classList.toggle('active', v === 'nominal');
+  document.getElementById('viewReal').classList.toggle('active', v === 'real');
+  recalc();
+}
+
+function fmt(n) {
+  if (!isFinite(n)) return '—';
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(n));
+  if (abs >= 1e6) return `${sign}€${(abs/1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${sign}€${(abs/1e3).toFixed(0)}K`;
+  return `${sign}€${abs.toLocaleString()}`;
+}
+
+function getInputs() {
+  return {
+    currentAge: +document.getElementById('currentAge').value,
+    retirementAge: +document.getElementById('retirementAge').value,
+    lifeExpectancy: +document.getElementById('lifeExpectancy').value,
+    currentSavings: +document.getElementById('currentSavings').value,
+    monthlyContribution: +document.getElementById('monthlyContribution').value,
+    monthlyBurn: +document.getElementById('monthlyBurn').value,
+    inflation: +document.getElementById('inflation').value / 100,
+    preReturn: +document.getElementById('returnScenario').value / 100,
+    postReturn: +document.getElementById('postReturn').value / 100,
+    taxRate: +document.getElementById('taxRate').value / 100,
+  };
+}
+
+// Simulate year by year. Returns { trajectory: [{age, nominal, real}], moneyLastsAge, targetAtRetirement }
+function simulate(p) {
+  const yearsToRetire = Math.max(0, p.retirementAge - p.currentAge);
+  const yearsRetired = Math.max(0, p.lifeExpectancy - p.retirementAge);
+  const trajectory = [];
+  let balance = p.currentSavings;
+  let monthlyContrib = p.monthlyContribution;
+  let monthlyBurnNow = p.monthlyBurn;
+  let moneyLastsAge = p.lifeExpectancy;
+  let hitZero = false;
+
+  // Accumulation
+  for (let y = 0; y < yearsToRetire; y++) {
+    const age = p.currentAge + y;
+    const realBal = balance / Math.pow(1 + p.inflation, y);
+    trajectory.push({ age, nominal: balance, real: realBal, phase: 'accum' });
+    // monthly compounding, contributions inflate
+    const monthlyRate = Math.pow(1 + p.preReturn, 1/12) - 1;
+    for (let m = 0; m < 12; m++) {
+      balance = balance * (1 + monthlyRate) + monthlyContrib;
+    }
+    monthlyContrib *= (1 + p.inflation);
+    monthlyBurnNow *= (1 + p.inflation);
+  }
+
+  const targetAtRetirement = balance;
+  // monthlyBurnNow is now the inflated burn at retirement
+  const burnAtRetirement = monthlyBurnNow; // grows from today's value through accumulation
+  // Adjust burn for tax: gross withdrawal needed = net burn / (1 - tax)
+  let monthlyWithdrawal = burnAtRetirement / (1 - p.taxRate);
+
+  // Decumulation
+  for (let y = 0; y < yearsRetired; y++) {
+    const age = p.retirementAge + y;
+    const yearsFromStart = yearsToRetire + y;
+    const realBal = balance / Math.pow(1 + p.inflation, yearsFromStart);
+    trajectory.push({ age, nominal: balance, real: realBal, phase: 'decum' });
+    const monthlyRate = Math.pow(1 + p.postReturn, 1/12) - 1;
+    for (let m = 0; m < 12; m++) {
+      balance = balance * (1 + monthlyRate) - monthlyWithdrawal;
+      if (balance <= 0 && !hitZero) {
+        balance = 0;
+        moneyLastsAge = age + (m / 12);
+        hitZero = true;
+      }
+    }
+    monthlyWithdrawal *= (1 + p.inflation);
+    if (hitZero) break;
+  }
+  // Fill remaining trajectory with zeros if hit zero early
+  if (hitZero) {
+    const lastAge = trajectory[trajectory.length - 1].age;
+    for (let a = lastAge + 1; a <= p.lifeExpectancy; a++) {
+      const yearsFromStart = a - p.currentAge;
+      trajectory.push({ age: a, nominal: 0, real: 0, phase: 'depleted' });
+    }
+  } else {
+    // Add the final endpoint
+    const yearsFromStart = p.lifeExpectancy - p.currentAge;
+    const realBal = balance / Math.pow(1 + p.inflation, yearsFromStart);
+    trajectory.push({ age: p.lifeExpectancy, nominal: balance, real: realBal, phase: 'decum' });
+  }
+
+  return { trajectory, moneyLastsAge: hitZero ? moneyLastsAge : Infinity, targetAtRetirement, finalBalance: balance };
+}
+
+// Compute the "need at retirement" target: how much you'd need at retirement age to exactly last until life expectancy
+function computeNeed(p) {
+  // Find lump sum X at retirement such that withdrawing inflated monthly burn (post-tax) until life expectancy ends at 0
+  const yearsToRetire = p.retirementAge - p.currentAge;
+  const yearsRetired = p.lifeExpectancy - p.retirementAge;
+  if (yearsRetired <= 0) return 0;
+
+  // Burn at retirement in nominal €
+  const burnAtRet = p.monthlyBurn * Math.pow(1 + p.inflation, yearsToRetire);
+  const grossMonthly = burnAtRet / (1 - p.taxRate);
+
+  // Simulate from a guess and binary search
+  const sim = (X) => {
+    let b = X;
+    let w = grossMonthly;
+    const monthlyRate = Math.pow(1 + p.postReturn, 1/12) - 1;
+    for (let y = 0; y < yearsRetired; y++) {
+      for (let m = 0; m < 12; m++) {
+        b = b * (1 + monthlyRate) - w;
+      }
+      w *= (1 + p.inflation);
+    }
+    return b;
+  };
+
+  let lo = 0, hi = grossMonthly * 12 * yearsRetired * 5; // generous upper bound
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (sim(mid) > 0) hi = mid; else lo = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+// Compute earliest possible retirement age (binary search)
+function computeEarliest(p) {
+  for (let testAge = p.currentAge + 1; testAge <= p.lifeExpectancy - 1; testAge++) {
+    const testParams = { ...p, retirementAge: testAge };
+    const r = simulate(testParams);
+    if (r.moneyLastsAge >= p.lifeExpectancy) return testAge;
+  }
+  return null;
+}
+
+function recalc() {
+  const p = getInputs();
+  // Validate
+  if (p.retirementAge <= p.currentAge) {
+    document.getElementById('retirementAge').value = p.currentAge + 1;
+    return recalc();
+  }
+  if (p.lifeExpectancy <= p.retirementAge) {
+    document.getElementById('lifeExpectancy').value = p.retirementAge + 1;
+    return recalc();
+  }
+
+  // Update value displays
+  ['currentAge', 'retirementAge', 'lifeExpectancy', 'inflation', 'postReturn', 'taxRate'].forEach(id => {
+    document.getElementById(id + '-val').textContent = document.getElementById(id).value;
+  });
+
+  const r = simulate(p);
+  const need = computeNeed(p);
+  const earliest = computeEarliest(p);
+  const yearsToRetire = p.retirementAge - p.currentAge;
+
+  // View transformation
+  const toView = (nominal, yearsFromStart) => {
+    if (view === 'real') return nominal / Math.pow(1 + p.inflation, yearsFromStart);
+    return nominal;
+  };
+
+  const needView = view === 'real' ? need / Math.pow(1 + p.inflation, yearsToRetire) : need;
+  const projectedView = view === 'real' ? r.targetAtRetirement / Math.pow(1 + p.inflation, yearsToRetire) : r.targetAtRetirement;
+  const gapView = projectedView - needView;
+
+  document.getElementById('targetNeeded').textContent = fmt(needView);
+  document.getElementById('projectedAmount').textContent = fmt(projectedView);
+  document.getElementById('gap').textContent = (gapView >= 0 ? '+' : '') + fmt(gapView);
+
+  document.getElementById('metric-projected').className = 'metric ' + (projectedView >= needView ? 'good' : 'bad');
+  document.getElementById('metric-gap').className = 'metric ' + (gapView >= 0 ? 'good' : 'bad');
+
+  // Money lasts
+  const lasts = r.moneyLastsAge;
+  document.getElementById('moneyLasts').textContent = isFinite(lasts) ? Math.floor(lasts) : i18n[lang].moneyLastsForever;
+  document.getElementById('earliestAge').textContent = earliest ? earliest : i18n[lang].cannotRetire;
+
+  // Sub on headline
+  const t = i18n[lang];
+  document.getElementById('targetSub').textContent = t.targetSub(p.retirementAge, isFinite(lasts) ? `${Math.floor(lasts)}` : t.moneyLastsForever);
+
+  // Chart
+  const labels = r.trajectory.map(pt => pt.age);
+  const data = r.trajectory.map(pt => view === 'real' ? pt.real : pt.nominal);
+
+  if (!chart) {
+    const ctx = document.getElementById('chart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: t.portfolioLabel,
+          data: data,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          fill: true,
+          tension: 0.2,
+          pointRadius: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#cbd5e1' } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => fmt(ctx.parsed.y),
+            }
+          },
+          annotation: {}
+        },
+        scales: {
+          x: {
+            title: { display: true, text: t.ageLabel, color: '#94a3b8' },
+            ticks: { color: '#94a3b8' },
+            grid: { color: '#334155' }
+          },
+          y: {
+            ticks: {
+              color: '#94a3b8',
+              callback: (v) => fmt(v)
+            },
+            grid: { color: '#334155' }
+          }
+        }
+      }
+    });
+  } else {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    chart.data.datasets[0].label = t.portfolioLabel;
+    chart.options.scales.x.title.text = t.ageLabel;
+    chart.update('none');
+  }
+}
+
+// Wire up inputs
+function bindRange(id) {
+  const range = document.getElementById(id);
+  const num = document.getElementById(id + '-num');
+  if (num) {
+    range.addEventListener('input', () => { num.value = range.value; recalc(); });
+    num.addEventListener('input', () => { range.value = num.value; recalc(); });
+  } else {
+    range.addEventListener('input', recalc);
+  }
+}
+
+['currentAge', 'retirementAge', 'lifeExpectancy', 'currentSavings', 'monthlyContribution',
+ 'monthlyBurn', 'inflation', 'postReturn', 'taxRate'].forEach(bindRange);
+document.getElementById('returnScenario').addEventListener('change', recalc);
+
+setLang('en');
+recalc();
+</script>
+</body>
+</html>
