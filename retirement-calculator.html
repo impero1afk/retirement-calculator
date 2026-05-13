@@ -88,6 +88,50 @@
   .scenario-help {
     font-size: 0.75rem; color: #64748b; margin-top: 4px;
   }
+
+  .inflows-section {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid #334155;
+  }
+  .inflows-section h3 {
+    font-size: 0.95rem; color: #cbd5e1; margin-bottom: 4px; font-weight: 600;
+  }
+  .inflows-help {
+    font-size: 0.75rem; color: #64748b; margin-bottom: 12px;
+  }
+  .inflow-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 0.7fr auto;
+    gap: 6px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .inflow-row input {
+    padding: 6px 8px; background: #0f172a; color: #e2e8f0;
+    border: 1px solid #334155; border-radius: 6px; font-size: 0.85rem;
+    width: 100%;
+  }
+  .inflow-row .remove-btn {
+    background: #7f1d1d; color: #fecaca; border: none; width: 28px; height: 28px;
+    border-radius: 6px; cursor: pointer; font-size: 1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .inflow-row .remove-btn:hover { background: #991b1b; }
+  .add-inflow-btn {
+    width: 100%; background: #1e40af; color: white; border: none;
+    padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+    font-weight: 500; margin-top: 4px;
+  }
+  .add-inflow-btn:hover { background: #2563eb; }
+  .inflow-header {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 0.7fr 28px;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 </style>
 </head>
 <body>
@@ -134,8 +178,8 @@
           <span data-i18n="currentSavings">Current savings & investments (€)</span>
         </label>
         <div class="input-row">
-          <input type="range" id="currentSavings" min="0" max="2000000" value="50000" step="1000">
-          <input type="number" id="currentSavings-num" value="50000" step="1000">
+          <input type="range" id="currentSavings" min="0" max="10000000" value="50000" step="1000">
+          <input type="number" id="currentSavings-num" value="50000" step="1000" min="0">
         </div>
       </div>
 
@@ -144,8 +188,8 @@
           <span data-i18n="monthlyContribution">Monthly savings (€/month, today's value)</span>
         </label>
         <div class="input-row">
-          <input type="range" id="monthlyContribution" min="0" max="10000" value="1500" step="50">
-          <input type="number" id="monthlyContribution-num" value="1500" step="50">
+          <input type="range" id="monthlyContribution" min="0" max="25000" value="1500" step="50">
+          <input type="number" id="monthlyContribution-num" value="1500" step="50" min="0">
         </div>
       </div>
 
@@ -194,6 +238,19 @@
           <span class="value-display"><span id="taxRate-val">21</span>%</span>
         </label>
         <input type="range" id="taxRate" min="0" max="45" value="21" step="0.5">
+      </div>
+
+      <div class="inflows-section">
+        <h3 data-i18n="inflowsTitle">Future cash inflows</h3>
+        <div class="inflows-help" data-i18n="inflowsHelp">Inheritance, stock options vesting, asset sales. Amount in nominal € (what you'll actually receive, net of taxes).</div>
+        <div class="inflow-header">
+          <span data-i18n="inflowLabel">Label</span>
+          <span data-i18n="inflowAmount">Amount (€)</span>
+          <span data-i18n="inflowAge">Age</span>
+          <span></span>
+        </div>
+        <div id="inflowsList"></div>
+        <button class="add-inflow-btn" onclick="addInflow()" data-i18n="addInflow">+ Add inflow</button>
       </div>
     </div>
 
@@ -275,6 +332,13 @@ const i18n = {
     ageLabel: "Age",
     retirementLine: "Retirement",
     targetSub: (age, lasts) => `to fund ${age} → ${lasts} at the chosen burn`,
+    inflowsTitle: "Future cash inflows",
+    inflowsHelp: "Inheritance, stock options vesting, asset sales. Amount in nominal € (what you'll actually receive, net of taxes).",
+    inflowLabel: "Label",
+    inflowAmount: "Amount (€)",
+    inflowAge: "Age",
+    addInflow: "+ Add inflow",
+    inflowPlaceholder: "e.g. Stock options",
   },
   es: {
     title: "🏖️ Calculadora de Jubilación",
@@ -309,12 +373,56 @@ const i18n = {
     ageLabel: "Edad",
     retirementLine: "Jubilación",
     targetSub: (age, lasts) => `para financiar ${age} → ${lasts} con el gasto elegido`,
+    inflowsTitle: "Entradas de dinero futuras",
+    inflowsHelp: "Herencias, stock options, ventas de activos. Importe en € nominales (lo que recibirás realmente, neto de impuestos).",
+    inflowLabel: "Etiqueta",
+    inflowAmount: "Importe (€)",
+    inflowAge: "Edad",
+    addInflow: "+ Añadir entrada",
+    inflowPlaceholder: "ej. Stock options",
   }
 };
 
 let lang = 'en';
 let view = 'nominal';
 let chart;
+let inflows = []; // [{id, label, amount, age}]
+let nextInflowId = 1;
+
+function addInflow(label = '', amount = '', age = '') {
+  inflows.push({ id: nextInflowId++, label, amount, age });
+  renderInflows();
+  recalc();
+}
+
+function removeInflow(id) {
+  inflows = inflows.filter(f => f.id !== id);
+  renderInflows();
+  recalc();
+}
+
+function updateInflow(id, field, value) {
+  const f = inflows.find(x => x.id === id);
+  if (!f) return;
+  f[field] = value;
+  recalc();
+}
+
+function renderInflows() {
+  const list = document.getElementById('inflowsList');
+  const t = i18n[lang];
+  list.innerHTML = inflows.map(f => `
+    <div class="inflow-row">
+      <input type="text" placeholder="${t.inflowPlaceholder}" value="${f.label.replace(/"/g, '&quot;')}"
+        oninput="updateInflow(${f.id}, 'label', this.value)">
+      <input type="number" placeholder="0" value="${f.amount}" min="0" step="1000"
+        oninput="updateInflow(${f.id}, 'amount', this.value)">
+      <input type="number" placeholder="0" value="${f.age}" min="0" max="120" step="1"
+        oninput="updateInflow(${f.id}, 'age', this.value)">
+      <button class="remove-btn" onclick="removeInflow(${f.id})" title="Remove">×</button>
+    </div>
+  `).join('');
+}
 
 function setLang(l) {
   lang = l;
@@ -325,6 +433,7 @@ function setLang(l) {
     const key = el.getAttribute('data-i18n');
     if (i18n[l][key]) el.textContent = i18n[l][key];
   });
+  renderInflows();
   recalc();
 }
 
@@ -370,9 +479,18 @@ function simulate(p) {
   let moneyLastsAge = p.lifeExpectancy;
   let hitZero = false;
 
+  // Helper: get total inflows received at a specific age (start of year)
+  const inflowsAtAge = (age) => {
+    return inflows
+      .filter(f => f.amount && f.age !== '' && Math.floor(+f.age) === age)
+      .reduce((sum, f) => sum + (+f.amount || 0), 0);
+  };
+
   // Accumulation
   for (let y = 0; y < yearsToRetire; y++) {
     const age = p.currentAge + y;
+    // Add any inflows received this year at the start
+    balance += inflowsAtAge(age);
     const realBal = balance / Math.pow(1 + p.inflation, y);
     trajectory.push({ age, nominal: balance, real: realBal, phase: 'accum' });
     // monthly compounding, contributions inflate
@@ -384,6 +502,9 @@ function simulate(p) {
     monthlyBurnNow *= (1 + p.inflation);
   }
 
+  // Add any inflow received exactly at retirement age
+  balance += inflowsAtAge(p.retirementAge);
+
   const targetAtRetirement = balance;
   // monthlyBurnNow is now the inflated burn at retirement
   const burnAtRetirement = monthlyBurnNow; // grows from today's value through accumulation
@@ -393,36 +514,36 @@ function simulate(p) {
   // Decumulation
   for (let y = 0; y < yearsRetired; y++) {
     const age = p.retirementAge + y;
+    // Inflow at this age (skip retirement age itself, already added above)
+    if (y > 0) balance += inflowsAtAge(age);
+    // If a future inflow revived us, clear hitZero so the chart shows the recovery
+    if (hitZero && balance > 0) hitZero = false;
     const yearsFromStart = yearsToRetire + y;
     const realBal = balance / Math.pow(1 + p.inflation, yearsFromStart);
     trajectory.push({ age, nominal: balance, real: realBal, phase: 'decum' });
     const monthlyRate = Math.pow(1 + p.postReturn, 1/12) - 1;
     for (let m = 0; m < 12; m++) {
       balance = balance * (1 + monthlyRate) - monthlyWithdrawal;
-      if (balance <= 0 && !hitZero) {
+      if (balance <= 0) {
         balance = 0;
-        moneyLastsAge = age + (m / 12);
-        hitZero = true;
+        // Track the latest depletion point. If inflow revives us later, this gets overwritten.
+        if (!hitZero) {
+          moneyLastsAge = age + (m / 12);
+          hitZero = true;
+        }
+      } else if (hitZero) {
+        // Recovery: clear the depletion flag so we can re-track if it happens again
+        hitZero = false;
       }
     }
     monthlyWithdrawal *= (1 + p.inflation);
-    if (hitZero) break;
   }
-  // Fill remaining trajectory with zeros if hit zero early
-  if (hitZero) {
-    const lastAge = trajectory[trajectory.length - 1].age;
-    for (let a = lastAge + 1; a <= p.lifeExpectancy; a++) {
-      const yearsFromStart = a - p.currentAge;
-      trajectory.push({ age: a, nominal: 0, real: 0, phase: 'depleted' });
-    }
-  } else {
-    // Add the final endpoint
-    const yearsFromStart = p.lifeExpectancy - p.currentAge;
-    const realBal = balance / Math.pow(1 + p.inflation, yearsFromStart);
-    trajectory.push({ age: p.lifeExpectancy, nominal: balance, real: realBal, phase: 'decum' });
-  }
+  // Add the final endpoint
+  const yearsFromStart = p.lifeExpectancy - p.currentAge;
+  const realBal = balance / Math.pow(1 + p.inflation, yearsFromStart);
+  trajectory.push({ age: p.lifeExpectancy, nominal: balance, real: realBal, phase: hitZero && balance === 0 ? 'depleted' : 'decum' });
 
-  return { trajectory, moneyLastsAge: hitZero ? moneyLastsAge : Infinity, targetAtRetirement, finalBalance: balance };
+  return { trajectory, moneyLastsAge: (hitZero && balance === 0) ? moneyLastsAge : Infinity, targetAtRetirement, finalBalance: balance };
 }
 
 // Compute the "need at retirement" target: how much you'd need at retirement age to exactly last until life expectancy
@@ -436,12 +557,22 @@ function computeNeed(p) {
   const burnAtRet = p.monthlyBurn * Math.pow(1 + p.inflation, yearsToRetire);
   const grossMonthly = burnAtRet / (1 - p.taxRate);
 
+  // Post-retirement inflows (received strictly after retirement age)
+  const postRetInflows = inflows
+    .filter(f => f.amount && f.age !== '' && Math.floor(+f.age) > p.retirementAge && Math.floor(+f.age) <= p.lifeExpectancy)
+    .map(f => ({ age: Math.floor(+f.age), amount: +f.amount }));
+
   // Simulate from a guess and binary search
   const sim = (X) => {
     let b = X;
     let w = grossMonthly;
     const monthlyRate = Math.pow(1 + p.postReturn, 1/12) - 1;
     for (let y = 0; y < yearsRetired; y++) {
+      const currentAge = p.retirementAge + y;
+      // Add inflows at start of this year (skip year 0, which is retirement age itself)
+      if (y > 0) {
+        postRetInflows.forEach(f => { if (f.age === currentAge) b += f.amount; });
+      }
       for (let m = 0; m < 12; m++) {
         b = b * (1 + monthlyRate) - w;
       }
@@ -455,7 +586,7 @@ function computeNeed(p) {
     const mid = (lo + hi) / 2;
     if (sim(mid) > 0) hi = mid; else lo = mid;
   }
-  return (lo + hi) / 2;
+  return Math.max(0, (lo + hi) / 2);
 }
 
 // Compute earliest possible retirement age (binary search)
